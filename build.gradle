@@ -1,0 +1,39 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group 'coolclk'
+version '1.0.0'
+
+repositories {
+    mavenCentral()
+    flatDir { dir 'libs' }
+}
+
+dependencies {
+    compile 'org.ow2.asm:asm:8.0'
+    compile 'org.ow2.asm:asm-tree:8.0'
+    compile 'org.ow2.asm:asm-commons:8.0'
+    compile 'org.ow2.asm:asm-analysis:8.0'
+    compile 'org.ow2.asm:asm-util:8.0'
+    compile 'org.ow2.asm:asm-xml:8.0'
+    compile fileTree(dir: 'libs', include: [ '*.jar' ])
+}
+
+sourceCompatibility = '8'
+targetCompatibility = '8'
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest.attributes([
+            'Main-Class': 'coolclk.jeditor.Application',
+            'Agent-Class': 'coolclk.jeditor.Application',
+            'Premain-Class': 'coolclk.jeditor.Application',
+            'Can-Redefine-Classes': 'true',
+            'Can-Retransform-Classes': 'true'
+    ])
+}

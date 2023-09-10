@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.BorderPane?>
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="coolclk.jeditor.editor.Controller" fx:id="root" prefHeight="400" prefWidth="600">
+    <top>
+        <MenuBar>
+            <Menu text="%menu.file">
+                <MenuItem onAction="#openFile" text="%menu.file.openFile"/>
+                <Menu fx:id="processSelectMenu" onAction="#refreshProcessMenu" onShowing="#refreshProcessMenu" text="%menu.file.openProcess"/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#close" text="%menu.file.exit"/>
+            </Menu>
+        </MenuBar>
+    </top>
+    <center>
+        <TabPane>
+            <Tab text="%tab.home" closable="false">
+                <Label>从 打开文件 或者 选择进程 来开始</Label>
+            </Tab>
+        </TabPane>
+    </center>
+</BorderPane>
