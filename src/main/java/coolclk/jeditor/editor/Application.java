@@ -10,7 +10,13 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 public class Application extends javafx.application.Application {
-    public final static ResourceBundle languageResourceBundle = ResourceBundle.getBundle("language." + Locale.getDefault().toString());
+    public final static ResourceBundle languageResourceBundle;
+
+    static {
+        ResourceBundle langRes = ResourceBundle.getBundle("language." + Locale.getDefault().toString());
+        if (langRes == null) langRes = ResourceBundle.getBundle("language.en_US");
+        languageResourceBundle = langRes;
+    }
 
     @Override
     public void start(Stage stage) throws IOException {

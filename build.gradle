@@ -12,12 +12,14 @@ repositories {
 }
 
 dependencies {
+    compile 'org.fxmisc.richtext:richtextfx:0.10.5'
+
     compile 'org.ow2.asm:asm:8.0'
     compile 'org.ow2.asm:asm-tree:8.0'
     compile 'org.ow2.asm:asm-commons:8.0'
     compile 'org.ow2.asm:asm-analysis:8.0'
     compile 'org.ow2.asm:asm-util:8.0'
-    compile 'org.ow2.asm:asm-xml:8.0'
+
     compile fileTree(dir: 'libs', include: [ '*.jar' ])
 }
 
