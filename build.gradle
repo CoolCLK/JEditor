@@ -14,6 +14,8 @@ repositories {
 dependencies {
     compile 'org.fxmisc.richtext:richtextfx:0.10.5'
 
+    compile 'org.reflections:reflections:0.10.2'
+    compile 'org.ow2.asm:asm:8.0'
     compile 'org.ow2.asm:asm:8.0'
     compile 'org.ow2.asm:asm-tree:8.0'
     compile 'org.ow2.asm:asm-commons:8.0'

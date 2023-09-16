@@ -1,0 +1,35 @@
+.highlight-keyword {
+    -fx-fill: purple;
+    -fx-font-weight: bold;
+}
+
+.highlight-semicolon {
+    -fx-font-weight: bold;
+}
+
+.highlight-paren {
+    -fx-fill: firebrick;
+    -fx-font-weight: bold;
+}
+
+.highlight-bracket {
+    -fx-fill: darkgreen;
+    -fx-font-weight: bold;
+}
+
+.highlight-brace {
+    -fx-fill: teal;
+    -fx-font-weight: bold;
+}
+
+.highlight-string {
+    -fx-fill: blue;
+}
+
+.highlight-comment {
+	-fx-fill: cadetblue;
+}
+
+.paragraph-box:has-caret {
+    -fx-background-color: #f2f9fc;
+}

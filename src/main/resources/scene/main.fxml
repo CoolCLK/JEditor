@@ -7,8 +7,11 @@
     <top>
         <MenuBar>
             <Menu text="%menu.file">
-                <MenuItem onAction="#openFile" text="%menu.file.openFile"/>
+                <MenuItem onAction="#openFiles" text="%menu.file.openFile"/>
                 <MenuItem onAction="#openProcess" text="%menu.file.openProcess"/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#save" text="%menu.file.save"/>
+                <MenuItem onAction="#saveAs" text="%menu.file.saveAs"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#close" text="%menu.file.exit"/>
             </Menu>
