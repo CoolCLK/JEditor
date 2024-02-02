@@ -1,4 +1,4 @@
-package coolclk.jeditor.editor;
+package coolclk.jeditor;
 
 import coolclk.jeditor.api.CodeArea;
 import javafx.fxml.FXMLLoader;
@@ -6,7 +6,6 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.lang.instrument.Instrumentation;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -37,13 +36,5 @@ public class Application extends javafx.application.Application {
 
     public static void main(String[] args) {
         launch();
-    }
-
-    public static void premain(String arg, Instrumentation inst) {
-
-    }
-
-    public static void agentmain(String arg, Instrumentation inst) {
-
     }
 }
