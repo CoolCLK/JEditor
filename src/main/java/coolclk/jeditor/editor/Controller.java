@@ -14,7 +14,6 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.DragEvent;
@@ -89,7 +88,7 @@ public class Controller extends SimpleController {
 
                         HBox tabContent = new HBox(tabSpiltPane);
 
-                        String tabName = "";
+                        String tabName;
                         try {
                             tabName = "[" + processListCell.getSelectionModel().getSelectedItem().getVmIdentifier().getLocalVmId() + "] " + MonitoredVmUtil.mainClass(processListCell.getSelectionModel().getSelectedItem(), true);
                         } catch (MonitorException e) {

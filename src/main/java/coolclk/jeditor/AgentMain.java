@@ -1,7 +1,5 @@
 package coolclk.jeditor;
 
-import com.sun.tools.javac.code.Attribute;
-
 import java.io.IOException;
 import java.lang.instrument.ClassDefinition;
 import java.lang.instrument.ClassFileTransformer;
