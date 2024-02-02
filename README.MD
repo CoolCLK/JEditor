@@ -25,4 +25,4 @@ It is an editor that can edit *.class* files and modify running JVMs' classes.
 
 ---
 
-· [English](README.MD) · [简体中文](docs/zhCN/Introduce.MD) ·
+· [English](README.MD) · [简体中文](docs/zh-CN/Introduce.MD) ·
