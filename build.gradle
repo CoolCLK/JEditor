@@ -1,6 +1,5 @@
 plugins {
     id 'java'
-    id 'application'
 }
 
 group 'coolclk'
@@ -35,9 +34,14 @@ tasks.withType(JavaCompile) {
 jar {
     manifest.attributes([
             'Main-Class': 'coolclk.jeditor.Application',
-            'Agent-Class': 'coolclk.jeditor.Application',
-            'Premain-Class': 'coolclk.jeditor.Application',
+            'Agent-Class': 'coolclk.jeditor.AgentMain',
+            'Premain-Class': 'coolclk.jeditor.AgentMain',
+            // For user test
             'Can-Redefine-Classes': 'true',
             'Can-Retransform-Classes': 'true'
     ])
+
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
