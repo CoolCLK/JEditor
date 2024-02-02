@@ -2,12 +2,14 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.Insets?>
 <BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="coolclk.jeditor.editor.Controller" fx:id="root" prefHeight="400" prefWidth="600">
     <top>
         <MenuBar>
             <Menu text="%menu.file">
-                <MenuItem onAction="#openFiles" text="%menu.file.openFile"/>
                 <MenuItem onAction="#openProcess" text="%menu.file.openProcess"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#save" text="%menu.file.save"/>
@@ -20,7 +22,25 @@
     <center>
         <TabPane fx:id="tabs">
             <Tab text="%tab.home" closable="false">
-                <Label text="%tab.home.content"/>
+                <VBox>
+                    <padding>
+                        <Insets topRightBottomLeft="15"/>
+                    </padding>
+                    <Label text="%tab.home.content.title" style="-fx-font-size: 130%;"/>
+                    <VBox style="-fx-font-size: 100%;">
+                        <padding>
+                            <Insets topRightBottomLeft="5"/>
+                        </padding>
+                        <HBox>
+                            <Label>· </Label>
+                            <Hyperlink text="%tab.home.content.openFile"/>
+                        </HBox>
+                        <HBox>
+                            <Label>· </Label>
+                            <Hyperlink onAction="#openProcess" text="%tab.home.content.openProcess"/>
+                        </HBox>
+                    </VBox>
+                </VBox>
             </Tab>
         </TabPane>
     </center>
