@@ -5,8 +5,11 @@ import com.sun.tools.attach.AgentLoadException;
 import com.sun.tools.attach.AttachNotSupportedException;
 import com.sun.tools.attach.VirtualMachine;
 import coolclk.jeditor.Application;
-import coolclk.jeditor.api.CodeArea;
-import coolclk.jeditor.api.SimpleController;
+import coolclk.jeditor.Configuration;
+import coolclk.jeditor.api.lang.AutoStoppableThread;
+import coolclk.jeditor.api.javafx.CodeArea;
+import coolclk.jeditor.api.javafx.SimpleController;
+import coolclk.jeditor.api.lang.Stoppable;
 import coolclk.jeditor.util.SocketUtil;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -16,6 +19,8 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Menu;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
@@ -26,6 +31,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import sun.jvmstat.monitor.*;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.*;
@@ -36,6 +42,7 @@ import java.util.Random;
 
 public class Controller extends SimpleController {
     public TabPane tabs;
+    public Menu userScriptsMenu;
 
     @Override
     public void initialize(Stage stage) {
@@ -118,12 +125,20 @@ public class Controller extends SimpleController {
 
                         tabs.getTabs().add(tab);
 
-                            File agentJarFile = new File(Application.class.getProtectionDomain().getCodeSource().getLocation().getFile());
+                        File agentJarFile = new File(Application.class.getProtectionDomain().getCodeSource().getLocation().getFile());
 
-                            if (agentJarFile.exists() && agentJarFile.isFile()) {
-                                int finalSocketPort = socketPort;
+                        if (agentJarFile.exists() && agentJarFile.isFile()) {
+                            int finalSocketPort = socketPort;
 
-                                new Thread(() -> {
+                            new AutoStoppableThread(new Stoppable() {
+                                boolean isStop = false;
+                                @Override
+                                public void stop() {
+                                    isStop = true;
+                                }
+
+                                @Override
+                                public void run() {
                                     try (final ServerSocket serverSocket = new ServerSocket()) {
                                         serverSocket.bind(new InetSocketAddress(InetAddress.getLocalHost(), finalSocketPort));
                                         serverSocket.setSoTimeout(5000);
@@ -134,7 +149,7 @@ public class Controller extends SimpleController {
 
                                         int startInputIndex = 0;
                                         byte[] inputBytes;
-                                        while (!socket.isClosed()) {
+                                        while (!socket.isClosed() && !isStop) {
                                             inputBytes = new byte[socket.getInputStream().available() - startInputIndex];
                                             int inputReadIndex = 0;
                                             int inputReadByte;
@@ -180,20 +195,21 @@ public class Controller extends SimpleController {
                                     } finally {
                                         tabs.getTabs().remove(tab);
                                     }
-                                }).start();
-
-                                try {
-                                    VirtualMachine virtualMachine = VirtualMachine.attach(String.valueOf(processListCell.getSelectionModel().getSelectedItem().getVmIdentifier().getLocalVmId()));
-                                    virtualMachine.loadAgent(agentJarFile.getAbsolutePath(), "--port " + socketPort);
-                                    virtualMachine.detach();
-                                } catch (AgentLoadException | AttachNotSupportedException |
-                                         AgentInitializationException | IOException e) {
-                                    new Alert(Alert.AlertType.ERROR, Application.languageResourceBundle.getString("window.selectProcess.loadAgentError.content"), ButtonType.OK).showAndWait();
-                                    throw new RuntimeException("Load agent to process error", e);
                                 }
-                            } else {
-                                new Alert(Alert.AlertType.ERROR, Application.languageResourceBundle.getString("window.selectProcess.agentJarNotFound.content"), ButtonType.OK).showAndWait();
+                            }).start();
+
+                            try {
+                                VirtualMachine virtualMachine = VirtualMachine.attach(String.valueOf(processListCell.getSelectionModel().getSelectedItem().getVmIdentifier().getLocalVmId()));
+                                virtualMachine.loadAgent(agentJarFile.getAbsolutePath(), "--port=" + socketPort);
+                                virtualMachine.detach();
+                            } catch (AgentLoadException | AttachNotSupportedException |
+                                     AgentInitializationException | IOException e) {
+                                new Alert(Alert.AlertType.ERROR, Application.languageResourceBundle.getString("window.selectProcess.loadAgentError.content"), ButtonType.OK).showAndWait();
+                                throw new RuntimeException("Load agent to process error", e);
                             }
+                        } else {
+                            new Alert(Alert.AlertType.ERROR, Application.languageResourceBundle.getString("window.selectProcess.agentJarNotFound.content"), ButtonType.OK).showAndWait();
+                        }
                     } else
                         new Alert(Alert.AlertType.WARNING, Application.languageResourceBundle.getString("window.selectProcess.unAttachable.content"), ButtonType.OK).showAndWait();
                 } catch (MonitorException e) {
@@ -229,5 +245,24 @@ public class Controller extends SimpleController {
     }
 
     public void saveAs() {
+    }
+
+    public void openHelpDocuments() {
+        openUrl("https://coolclk.github.io/JEditor/" + Application.settingsConfiguration.getProperties().getProperty(Configuration.ConfigurationKeys.GENERAL_LANGUAGE, "en") + "/documents/Introduce.html");
+    }
+
+    public void openUrl(String url) {
+        if (Desktop.isDesktopSupported()) {
+            URI uri = URI.create(url);
+            Desktop desktop = Desktop.getDesktop();
+            if (desktop.isSupported(Desktop.Action.BROWSE)) {
+                try {
+                    desktop.browse(uri);
+                } catch (IOException e) {
+                    new Alert(Alert.AlertType.WARNING, Application.languageResourceBundle.getString(""));
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 }

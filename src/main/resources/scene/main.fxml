@@ -10,12 +10,29 @@
     <top>
         <MenuBar>
             <Menu text="%menu.file">
+                <MenuItem text="%menu.file.openFile"/>
                 <MenuItem onAction="#openProcess" text="%menu.file.openProcess"/>
+                <SeparatorMenuItem/>
+                <MenuItem text="%menu.file.settings"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#save" text="%menu.file.save"/>
                 <MenuItem onAction="#saveAs" text="%menu.file.saveAs"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#close" text="%menu.file.exit"/>
+            </Menu>
+            <Menu text="%menu.tool">
+                <Menu fx:id="userScriptsMenu" text="%menu.tool.userScript">
+                </Menu>
+            </Menu>
+            <Menu text="%menu.help">
+                <MenuItem onAction="#openHelpDocuments" text="%menu.help.help"/>
+                <SeparatorMenuItem/>
+                <Menu text="%menu.help.diagnosisTools">
+                    <MenuItem text="%menu.help.diagnosisTools.editAgentArguments"/>
+                </Menu>
+                <SeparatorMenuItem/>
+                <MenuItem text="%menu.help.checkUpdate"/>
+                <MenuItem text="%menu.help.about"/>
             </Menu>
         </MenuBar>
     </top>

@@ -4,6 +4,14 @@
 
 ---
 
+- [Introduce](Introduce.MD)
+
+---
+
+> REMIND: JEditor is still developing!
+
+> REMIND: JEditor is still unsupported English!
+
 ### What
 
 It is an editor that can edit *.class* files and modify running JVMs' classes.
@@ -25,4 +33,4 @@ It is an editor that can edit *.class* files and modify running JVMs' classes.
 
 ---
 
-· [English](Introduce.MD) · [简体中文](../zh-CN/Introduce.MD) ·
+· [English](Introduce.MD) · [简体中文](../../zh-CN/documents/Introduce.MD) ·

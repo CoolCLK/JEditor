@@ -1,6 +1,6 @@
 package coolclk.jeditor;
 
-import coolclk.jeditor.api.CodeArea;
+import coolclk.jeditor.api.javafx.CodeArea;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -11,11 +11,23 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 
 public class Application extends javafx.application.Application {
+    public static Configuration settingsConfiguration;
     public final static ResourceBundle languageResourceBundle;
 
     static {
-        ResourceBundle langRes = ResourceBundle.getBundle("language." + Locale.getDefault().toString());
-        if (langRes == null) langRes = ResourceBundle.getBundle("language.en_US");
+        try {
+            settingsConfiguration = new Configuration("settings");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        String language = settingsConfiguration.getProperties().getProperty(Configuration.ConfigurationKeys.GENERAL_LANGUAGE, Locale.getDefault().toString().replaceAll("_", "-"));
+        ResourceBundle langRes = ResourceBundle.getBundle("language." + language);
+        if (langRes == null) {
+            language = "zh-CN";
+            langRes = ResourceBundle.getBundle("language.zh-CN");
+        }
+        settingsConfiguration.getProperties().setProperty(Configuration.ConfigurationKeys.GENERAL_LANGUAGE, language);
         languageResourceBundle = langRes;
     }
 

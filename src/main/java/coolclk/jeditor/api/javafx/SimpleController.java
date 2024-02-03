@@ -1,4 +1,4 @@
-package coolclk.jeditor.api;
+package coolclk.jeditor.api.javafx;
 
 import javafx.application.Platform;
 import javafx.fxml.Initializable;
