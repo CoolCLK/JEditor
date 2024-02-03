@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="">
+    <head>
+        <title>JEditor</title>
+        <script type="text/javascript">
+            window.onload = function() {
+                let url = "en";
+                switch (navigator.language) {
+                    case "en": {
+                        url = "en";
+                        break;
+                    }
+                    case "zh-CN": {
+                        url = "zh-CN";
+                        break;
+                    }
+                }
+                window.location.href = url;
+            }
+        </script>
+    </head>
+</html>
