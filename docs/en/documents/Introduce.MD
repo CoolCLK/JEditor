@@ -33,4 +33,4 @@ It is an editor that can edit *.class* files and modify running JVMs' classes.
 
 ---
 
-· [English](Introduce.MD) · [简体中文](../../zh-CN/documents/Introduce.MD) ·
+· [English](Introduce.MD) · [简体中文](../../zh-CN/documents/Introduce.MD) · [日本語](../../zh-CN/documents/Introduce.MD) ·

@@ -41,4 +41,4 @@
 
 ---
 
-· [English](../../en/documents/Introduce.MD) · [简体中文](Introduce.MD) ·
+· [English](../../en/documents/Introduce.MD) · [简体中文](Introduce.MD) · [日本語](../../zh-CN/documents/Introduce.MD) ·
