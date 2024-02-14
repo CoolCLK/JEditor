@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.geometry.Insets?>
+<Pane xmlns="http://javafx.com/javafx" prefHeight="200" prefWidth="300">
+    <VBox alignment="CENTER">
+        <padding>
+            <Insets topRightBottomLeft="10.0"/>
+        </padding>
+        <Label text="JEditor" style="-fx-font-size: 300%;"/>
+        <Label text="版本号 1.0.0"/>
+    </VBox>
+</Pane>

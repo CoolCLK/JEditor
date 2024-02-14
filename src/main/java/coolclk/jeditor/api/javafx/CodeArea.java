@@ -2,6 +2,10 @@ package coolclk.jeditor.api.javafx;
 
 import javafx.beans.NamedArg;
 import javafx.concurrent.Task;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
@@ -15,6 +19,11 @@ import java.util.regex.Pattern;
 
 public class CodeArea extends org.fxmisc.richtext.CodeArea {
     private final static List<ExecutorService> executorPool = new ArrayList<>();
+
+
+    public CodeArea() {
+        this("");
+    }
 
     public CodeArea(@NamedArg("text") String text) {
         executor = Executors.newSingleThreadScheduledExecutor();
@@ -34,6 +43,17 @@ public class CodeArea extends org.fxmisc.richtext.CodeArea {
                     }
                 })
                 .subscribe(this::applyHighlighting);
+        this.textProperty().addListener(observable -> {
+            if (!this.isTextChanged()) {
+                this.textChanged = !Objects.equals(this.lastChangedText, this.getText());
+                this.lastChangedText = this.getText();
+            }
+        });
+        this.addEventFilter(KeyEvent.KEY_PRESSED, _event -> {
+            if (this.isTextChanged()) {
+                this.save(new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN).match(_event));
+            }
+        });
 
         appendText(text);
         getUndoManager().forgetHistory();
@@ -42,9 +62,23 @@ public class CodeArea extends org.fxmisc.richtext.CodeArea {
         selectRange(0, 0);
     }
 
+    /**
+     * 可继承的保存动作
+     * @param save 是否保存, 作为标记使用
+     */
+    public void save(boolean save) {
+        this.textChanged = false;
+    }
+
     public static void stopExecutors() {
         executorPool.forEach(ExecutorService::shutdown);
         executorPool.clear();
+    }
+
+    private String lastChangedText = this.getText();
+    private boolean textChanged = false;
+    public boolean isTextChanged() {
+        return this.textChanged;
     }
 
     // From RichTextFX examples

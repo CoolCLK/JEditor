@@ -2,6 +2,12 @@ package coolclk.jeditor;
 
 import coolclk.jeditor.api.lang.AutoStoppableThread;
 import coolclk.jeditor.api.lang.Stoppable;
+import coolclk.jeditor.util.ArrayUtil;
+import coolclk.jeditor.util.MathUtil;
+import coolclk.jeditor.util.StreamUtil;
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -15,7 +21,9 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 public class AgentMain {
@@ -24,18 +32,19 @@ public class AgentMain {
     }
 
     public static void agentmain(String arg, Instrumentation inst) throws UnknownHostException {
-        String[] args = arg.split(" ");
-        InetAddress argumentHost = getValueFromArguments(args, "host", null) == null ? InetAddress.getLocalHost() : InetAddress.getByName(getValueFromArguments(arg.split(" "), "host", null));
+        String[] args = arg.contains(" ") ? arg.split(" ") : new String[]{arg};
+        InetAddress argumentHost = Objects.isNull(getValueFromArguments(args, "host", null)) ? InetAddress.getLocalHost() : InetAddress.getByName(getValueFromArguments(arg.split(" "), "host", null));
         int argumentPort = Integer.parseInt(getValueFromArguments(args, "port", "-1"));
-        boolean enableLogging = Objects.equals(getValueFromArguments(args, "logging", "-1"), "true");
+        boolean enableLogging = Objects.equals(getValueFromArguments(args, "logging", "false"), "true");
         PrintStream logger = enableLogging ? System.out : new PrintStream(new OutputStream() { @Override public void write(int b) {  } });
+        logger.println("[JEditor] [agentmain/INFO] JEditor agent method loaded with arg \"" + arg + "\"");
         if (argumentPort > 0 && argumentPort < 0xFFFF) {
-            logger.println("JEditor agent loaded and connect to JEditor on " + argumentHost + ":" + argumentPort + ", more see https://coolclk.github.io/JEditor");
             new AutoStoppableThread(new Stoppable() {
                 boolean isStop = false;
 
                 @Override
                 public void stop() {
+                    logger.println("[JEditor] [Agent Thread/INFO] Process has been closed, agent thread will be closed");
                     isStop = true;
                 }
 
@@ -43,91 +52,133 @@ public class AgentMain {
                 public void run() {
                     try (Socket socket = new Socket()) {
                         socket.connect(new InetSocketAddress(argumentHost, argumentPort));
+                        Thread.sleep(200);
                         if (socket.isConnected()) {
-                            int startInputIndex = 0;
-                            byte[] inputBytes;
+                            logger.println("[JEditor] [Agent Thread/INFO] Connected to editor on " + argumentHost + ":" + argumentPort);
+                            if (socket.isInputShutdown() || socket.isOutputShutdown()) {
+                                logger.println("[JEditor] [Agent Thread/ERROR] Editor may close I/O streams");
+                                socket.close();
+                                return;
+                            }
+                            final byte[] endStreamFlags = ";".getBytes(); // 结尾字节
+                            int streamReadOffset = 0;
+                            List<Byte> cacheBytes = new ArrayList<>(); // 数据缓冲区
                             while (!socket.isClosed() && !isStop) {
-                                inputBytes = new byte[socket.getInputStream().available() - startInputIndex];
-                                if (inputBytes.length > 0) {
-                                    int inputReadIndex = 0;
-                                    int inputReadByte;
-                                    while ((inputReadByte = socket.getInputStream().read()) > -1) {
-                                        inputBytes[inputReadIndex] = (byte) inputReadByte;
-                                        inputReadIndex++;
+                                if (socket.getInputStream().available() >= 0 && socket.getInputStream().available() - streamReadOffset >= 0) {
+                                    byte[] inputBytes = new byte[socket.getInputStream().available() - streamReadOffset];
+                                    if (socket.getInputStream().read(inputBytes) != inputBytes.length) {
+                                        logger.println("[JEditor] [NETWORK/WARN] Read data length is different from buffer length, may cause some problems");
                                     }
-                                    String inputContent = new String(inputBytes, StandardCharsets.UTF_8);
-                                    if (!inputContent.isEmpty()) {
-                                        if (inputContent.endsWith(";")) {
-                                            startInputIndex += inputReadIndex;
-                                            inputContent = inputContent.substring(0, inputContent.length() - 1);
-                                        }
-
-                                        String[] inputArgs = inputContent.contains(" ") ? inputContent.split(" ") : new String[]{inputContent};
-                                        if (inputArgs.length > 0 && !inputArgs[0].isEmpty()) {
-                                            switch (inputArgs[0]) {
-                                                case "tree": {
-                                                    socket.getOutputStream().write("tree".getBytes(StandardCharsets.UTF_8));
-                                                    for (Class<?> loadedClass : inst.getAllLoadedClasses()) {
-                                                        socket.getOutputStream().write((" " + loadedClass.getName()).getBytes(StandardCharsets.UTF_8));
-                                                    }
-                                                    socket.getOutputStream().write(";".getBytes(StandardCharsets.UTF_8));
-                                                    socket.getOutputStream().flush();
-                                                    break;
-                                                }
-                                                case "class": {
-                                                    break;
-                                                }
-                                                case "retransform": {
-                                                    try {
-                                                        if (inputArgs.length >= 3) {
-                                                            String targetClassName = inputArgs[1];
-                                                            byte[] newByteCode = String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8);
-                                                            ClassFileTransformer transformer = (loader, className, classBeingRedefined, protectionDomain, classfileBuffer) -> {
-                                                                if (Objects.equals(className, targetClassName)) {
-                                                                    classfileBuffer = newByteCode;
+                                    streamReadOffset += inputBytes.length;
+                                    cacheBytes.addAll(Arrays.asList(StreamUtil.bytesToByteArray(inputBytes))); // 写入缓冲区
+                                    String inputContents = new String(StreamUtil.byteArrayToBytes(cacheBytes.toArray(new Byte[0])), StandardCharsets.UTF_8);
+                                    if (!inputContents.isEmpty() && inputContents.contains(new String(endStreamFlags))) {
+                                        boolean needReleaseBuffer = false;
+                                        for (String inputContent : inputContents.split(new String(endStreamFlags))) {
+                                            if (!inputContent.isEmpty()) {
+                                                logger.println("[JEditor] [NETWORK/DEBUG] Input data: " + inputContent);
+                                                String[] inputArgs = inputContent.contains(" ") ? inputContent.split(" ") : new String[]{inputContent};
+                                                if (inputArgs.length > 0 && !inputArgs[0].isEmpty()) {
+                                                    switch (inputArgs[0]) {
+                                                        case "close": {
+                                                            isStop = true;
+                                                            break;
+                                                        }
+                                                        case "tree": {
+                                                            logger.print("[JEditor] [NETWORK/DEBUG] Sending classes...\r");
+                                                            StringBuilder data = new StringBuilder("tree");
+                                                            for (Class<?> loadedClass : inst.getInitiatedClasses(ClassLoader.getSystemClassLoader())) {
+                                                                data.append(" ").append(loadedClass.getName());
+                                                                logger.print("[JEditor] [NETWORK/DEBUG] Sending class " + loadedClass + "\r");
+                                                            }
+                                                            logger.println("[JEditor] [NETWORK/DEBUG] Sent " + inst.getAllLoadedClasses().length + " classes");
+                                                            socket.getOutputStream().write(ArrayUtil.connect(data.toString().getBytes(StandardCharsets.UTF_8), endStreamFlags));
+                                                            break;
+                                                        }
+                                                        case "class": {
+                                                            if (inputArgs.length == 2) {
+                                                                inst.addTransformer((loader, className, classBeingRedefined, protectionDomain, classfileBuffer) -> {
+                                                                    if (Objects.equals(className, inputArgs[1])) {
+                                                                        try {
+                                                                            socket.getOutputStream().write(ArrayUtil.connect(("class " + className + " " + new String(classfileBuffer, StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8), endStreamFlags));
+                                                                        } catch (IOException e) {
+                                                                            new RuntimeException(e).printStackTrace(logger);
+                                                                        }
+                                                                    }
+                                                                    return classfileBuffer;
+                                                                }, false);
+                                                            }
+                                                            break;
+                                                        }
+                                                        case "retransform": {
+                                                            try {
+                                                                if (inputArgs.length >= 3) {
+                                                                    String targetClassName = inputArgs[1];
+                                                                    byte[] newByteCode = String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8);
+                                                                    ClassFileTransformer transformer = (loader, className, classBeingRedefined, protectionDomain, classfileBuffer) -> {
+                                                                        if (Objects.equals(className, targetClassName)) {
+                                                                            classfileBuffer = newByteCode;
+                                                                        }
+                                                                        return classfileBuffer;
+                                                                    };
+                                                                    inst.addTransformer(transformer, true);
+                                                                    inst.retransformClasses(Class.forName(targetClassName));
+                                                                    inst.removeTransformer(transformer);
                                                                 }
-                                                                return classfileBuffer;
-                                                            };
-                                                            inst.addTransformer(transformer, true);
-                                                            inst.retransformClasses(Class.forName(targetClassName));
-                                                            inst.removeTransformer(transformer);
+                                                            } catch (UnmodifiableClassException |
+                                                                     ClassNotFoundException e) {
+                                                                new RuntimeException(e).printStackTrace(logger);
+                                                            }
+                                                            break;
                                                         }
-                                                    } catch (UnmodifiableClassException | ClassNotFoundException e) {
-                                                        throw new RuntimeException(e);
-                                                    }
-                                                    break;
-                                                }
-                                                case "redefine": {
-                                                    try {
-                                                        if (inputArgs.length >= 3) {
-                                                            String targetClassName = inputArgs[1];
-                                                            byte[] newByteCode = String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8);
-                                                            inst.redefineClasses(new ClassDefinition(Class.forName(targetClassName), newByteCode));
+                                                        case "redefine": {
+                                                            try {
+                                                                if (inputArgs.length >= 3) {
+                                                                    String targetClassName = inputArgs[1];
+                                                                    byte[] newByteCode = String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8);
+                                                                    inst.redefineClasses(new ClassDefinition(Class.forName(targetClassName), newByteCode));
+                                                                }
+                                                            } catch (ClassNotFoundException |
+                                                                     UnmodifiableClassException e) {
+                                                                new RuntimeException(e).printStackTrace(logger);
+                                                            }
+                                                            break;
                                                         }
-                                                    } catch (ClassNotFoundException | UnmodifiableClassException e) {
-                                                        throw new RuntimeException(e);
                                                     }
-                                                    break;
                                                 }
                                             }
+                                            needReleaseBuffer = true;
+                                        }
+                                        if (needReleaseBuffer) {
+                                            cacheBytes.clear();
                                         }
                                     }
                                 }
+                                socket.getOutputStream().flush();
                             }
+                            if (!socket.isClosed()) {
+                                socket.close();
+                            }
+                            logger.println("[JEditor] [Agent Thread/INFO] Editor closed connection, agent thread will be closed");
+                        } else {
+                            logger.println("[JEditor] [Agent Thread/INFO] No connection, or editor timeout. Agent thread will be closed");
                         }
                     } catch (IOException e) {
-                        throw new RuntimeException("JEditor agent throws an exception when communicate with JEditor", e);
+                        new RuntimeException("JEditor agent throws an exception when communicate with JEditor", e).printStackTrace(logger);
+                    } catch (InterruptedException ignored) {  } finally {
+                        logger.println("[JEditor] [Agent Thread/INFO] Agent thread closed");
                     }
                 }
             }).start();
         }
+        logger.println("[JEditor] [agentmain/INFO] JEditor agent method was closed");
     }
 
     static String getValueFromArguments(String[] args, String key, String defaultValue) {
         String keyObj = (key.length() == 1 ? "-" : "--") + key;
         for (String argument : args) {
             if (argument.startsWith(keyObj) && argument.contains("=")) {
-                String[] keyAndValue = argument.split("=", 1);
+                String[] keyAndValue = argument.split("=", 2);
                 return keyAndValue[1];
             }
         }

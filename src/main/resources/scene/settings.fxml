@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.TreeView?>
+<?import javafx.scene.control.TreeItem?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.Button?>
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="coolclk.jeditor.editor.SettingsController" prefHeight="300" prefWidth="500" fx:id="root">
+    <center>
+        <SplitPane dividerPositions="0.25">
+            <TreeView fx:id="settingsTree">
+                <TreeItem value="%settings.editor">
+                    <children>
+                        <TreeItem fx:id="editorGeneral" value="%settings.editor.general"/>
+                    </children>
+                </TreeItem>
+            </TreeView>
+            <Pane fx:id="settingsView">
+            </Pane>
+        </SplitPane>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER_RIGHT">
+            <Button onAction="#confirmSettings" text="%ui.confirm"/>
+            <Button onAction="#close" text="%ui.cancel"/>
+            <Button onAction="#applySettings" text="%ui.apply"/>
+        </HBox>
+    </bottom>
+</BorderPane>

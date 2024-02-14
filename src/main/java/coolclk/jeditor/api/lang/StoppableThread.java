@@ -2,6 +2,10 @@ package coolclk.jeditor.api.lang;
 
 import java.lang.reflect.InvocationTargetException;
 
+/**
+ * 在 {@link java.lang.Thread} 基础上添加了可自定义关闭
+ * @author CoolCLK
+ */
 public class StoppableThread {
     @Override
     protected Object clone() throws CloneNotSupportedException {

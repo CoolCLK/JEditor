@@ -13,7 +13,7 @@
                 <MenuItem text="%menu.file.openFile"/>
                 <MenuItem onAction="#openProcess" text="%menu.file.openProcess"/>
                 <SeparatorMenuItem/>
-                <MenuItem text="%menu.file.settings"/>
+                <MenuItem onAction="#openSettings" text="%menu.file.settings"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#save" text="%menu.file.save"/>
                 <MenuItem onAction="#saveAs" text="%menu.file.saveAs"/>
@@ -27,12 +27,10 @@
             <Menu text="%menu.help">
                 <MenuItem onAction="#openHelpDocuments" text="%menu.help.help"/>
                 <SeparatorMenuItem/>
-                <Menu text="%menu.help.diagnosisTools">
-                    <MenuItem text="%menu.help.diagnosisTools.editAgentArguments"/>
-                </Menu>
+                <MenuItem onAction="#editAgentArguments" text="%menu.help.editAgentArguments"/>
                 <SeparatorMenuItem/>
-                <MenuItem text="%menu.help.checkUpdate"/>
-                <MenuItem text="%menu.help.about"/>
+                <MenuItem onAction="#checkUpdate" text="%menu.help.checkUpdate"/>
+                <MenuItem onAction="#openAbout" text="%menu.help.about"/>
             </Menu>
         </MenuBar>
     </top>

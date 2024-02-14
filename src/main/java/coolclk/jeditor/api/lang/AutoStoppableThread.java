@@ -3,6 +3,10 @@ package coolclk.jeditor.api.lang;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 在 {@link StoppableThread} 基础上添加了进程自动关闭
+ * @author CoolCLK
+ */
 public class AutoStoppableThread extends StoppableThread {
     private final static List<AutoStoppableThread> THREAD_POOL = new ArrayList<>();
     static {

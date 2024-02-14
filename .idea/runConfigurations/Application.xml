@@ -6,7 +6,7 @@
     <module name="JEditor.main" />
     <extension name="coverage">
       <pattern>
-        <option name="PATTERN" value="coolclk.jeditor.*" />
+        <option name="PATTERN" value="coolclk.jeditor.api.*" />
         <option name="ENABLED" value="true" />
       </pattern>
     </extension>
