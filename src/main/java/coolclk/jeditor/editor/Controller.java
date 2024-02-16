@@ -37,6 +37,7 @@ import sun.jvmstat.monitor.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -184,7 +185,7 @@ public class Controller extends SimpleController {
                                                 serverSocket.close();
                                                 break;
                                             }
-                                            if (socket.getInputStream().available() >= 0 && socket.getInputStream().available() - streamReadOffset >= 0) {
+                                            if (socket.getInputStream().available() - streamReadOffset >= 0) {
                                                 byte[] inputBytes = new byte[socket.getInputStream().available() - streamReadOffset];
                                                 if (inputBytes.length != socket.getInputStream().read(inputBytes)) {
                                                     _LOGGER.warn(Application.languageResourceBundle.getString("logging.agentWorker.lengthNotMatch"));
@@ -193,11 +194,10 @@ public class Controller extends SimpleController {
                                                 cacheBytes.addAll(Arrays.asList(StreamUtil.bytesToByteArray(inputBytes))); // 写入缓冲区
                                                 String inputContents = new String(StreamUtil.byteArrayToBytes(cacheBytes.toArray(new Byte[0])), StandardCharsets.UTF_8);
                                                 if (!inputContents.isEmpty() && inputContents.contains(new String(endStreamFlags))) {
-                                                    boolean needReleaseBuffer = false;
-                                                    for (String inputContent : inputContents.split(new String(endStreamFlags))) {
+                                                    for (String inputContent : StringUtil.split(inputContents, new String(endStreamFlags))) {
                                                         if (!inputContent.isEmpty()) {
                                                             _LOGGER.debug(StringUtil.replaceAll(Application.languageResourceBundle.getString("logging.agentWorker.acceptData"), "{data}", inputContent));
-                                                            String[] inputArgs = inputContent.contains(" ") ? inputContent.split(" ") : new String[]{inputContent};
+                                                            String[] inputArgs = inputContent.contains(" ") ? StringUtil.split(inputContent, " ") : new String[]{inputContent};
                                                             if (inputArgs.length > 0 && !inputArgs[0].isEmpty()) {
                                                                 switch (inputArgs[0]) {
                                                                     case "tree": {
@@ -208,7 +208,7 @@ public class Controller extends SimpleController {
                                                                                 if (!(className.startsWith("[") || className.startsWith("[["))) {
                                                                                     Platform.runLater(() -> {
                                                                                         ObservableList<TreeItem<String>> treeParent = classesTreeView.getRoot().getChildren();
-                                                                                        for (String classParent : className.contains(".") ? className.split("\\.") : new String[]{className}) {
+                                                                                        for (String classParent : className.contains(".") ? StringUtil.split(className, ".") : new String[]{className}) {
                                                                                             TreeItem<String> newParent = treeParent.stream().filter(parent -> Objects.equals(parent.getValue(), classParent)).findAny().orElse(new TreeItem<>(classParent));
                                                                                             if (!treeParent.contains(newParent)) {
                                                                                                 if (Objects.equals(className.substring(className.lastIndexOf(".") + 1), classParent)) {
@@ -357,11 +357,8 @@ public class Controller extends SimpleController {
                                                                 }
                                                             }
                                                         }
-                                                        needReleaseBuffer = true;
                                                     }
-                                                    if (needReleaseBuffer) {
-                                                        cacheBytes.clear();
-                                                    }
+                                                    cacheBytes.clear();
                                                 }
                                             }
                                             socket.getOutputStream().flush();
