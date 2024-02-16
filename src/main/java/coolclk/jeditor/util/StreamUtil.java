@@ -22,12 +22,13 @@ public class StreamUtil {
      * @author CoolCLK
      */
     public static byte[] readToEnd(InputStream stream) throws IOException {
-        List<Byte> bytes = new ArrayList<>();
-        int b;
+        byte[] bytes = new byte[stream.available()];
+        int i = 0, b;
         while ((b = stream.read()) != -1) {
-            bytes.add((byte) b);
+            bytes[i] = (byte) b;
+            i++;
         }
-        return byteArrayToBytes(bytes.toArray(new Byte[0]));
+        return bytes;
     }
 
     /**

@@ -3,17 +3,13 @@ package coolclk.jeditor;
 import coolclk.jeditor.api.lang.AutoStoppableThread;
 import coolclk.jeditor.api.lang.Stoppable;
 import coolclk.jeditor.util.ArrayUtil;
-import coolclk.jeditor.util.MathUtil;
 import coolclk.jeditor.util.StreamUtil;
-import javafx.application.Platform;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
+import coolclk.jeditor.util.StringUtil;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.instrument.ClassDefinition;
-import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.net.InetAddress;
@@ -25,15 +21,63 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class AgentMain {
+    static class TransformerTask {
+        enum TaskType {
+            READ,
+            WRITE
+        }
+
+        private final TaskType type;
+        private final String className;
+        private byte[] classFileBuffer;
+
+        public TransformerTask(TaskType type, String className) {
+            this.type = type;
+            this.className = className;
+        }
+
+        public TaskType getType() {
+            return this.type;
+        }
+
+        public String getClassName() {
+            return this.className;
+        }
+
+        public byte[] getClassFileBuffer() {
+            return this.classFileBuffer;
+        }
+
+        public void setClassFileBuffer(byte[] buffer) {
+            this.classFileBuffer = buffer;
+        }
+
+        public void readClass() {
+            // TODO 读取类后事件
+        }
+    }
+
+    /**
+     * 当以 javaagent 参数随着其它 JAVA 程序启动时，则调用此方法
+     * @throws UnknownHostException 无法获取指定或本地地址时抛出
+     * @author CoolCLK
+     */
     public static void premain(String arg, Instrumentation inst) throws UnknownHostException {
         agentmain(arg, inst);
     }
 
+    /**
+     * 当 JEditor 的 JAR 本体被加载 Agent 时调用此方法
+     * @param arg 以 <code>--key=value</code> 的方式输入即可，详见 <a href="https://coolclk.github.io/JEditor/documents">帮助文档</a>
+     * @throws UnknownHostException 无法获取指定或本地地址时抛出
+     * @author CoolCLK
+     */
     public static void agentmain(String arg, Instrumentation inst) throws UnknownHostException {
-        String[] args = arg.contains(" ") ? arg.split(" ") : new String[]{arg};
-        InetAddress argumentHost = Objects.isNull(getValueFromArguments(args, "host", null)) ? InetAddress.getLocalHost() : InetAddress.getByName(getValueFromArguments(arg.split(" "), "host", null));
+        String[] args = arg.contains(" ") ? StringUtil.split(arg," ") : new String[]{arg};
+        InetAddress argumentHost = Objects.isNull(getValueFromArguments(args, "host", null)) ? InetAddress.getLocalHost() : InetAddress.getByName(getValueFromArguments(StringUtil.split(arg, " "), "host", null));
         int argumentPort = Integer.parseInt(getValueFromArguments(args, "port", "-1"));
         boolean enableLogging = Objects.equals(getValueFromArguments(args, "logging", "false"), "true");
         PrintStream logger = enableLogging ? System.out : new PrintStream(new OutputStream() { @Override public void write(int b) {  } });
@@ -55,6 +99,28 @@ public class AgentMain {
                         Thread.sleep(200);
                         if (socket.isConnected()) {
                             logger.println("[JEditor] [Agent Thread/INFO] Connected to editor on " + argumentHost + ":" + argumentPort);
+
+                            List<TransformerTask> transformerTasks = new ArrayList<>();
+                            inst.addTransformer((loader, className, classBeingRedefined, protectionDomain, classfileBuffer) -> {
+                                AtomicReference<byte[]> buffer = new AtomicReference<>(classfileBuffer);
+                                transformerTasks.stream().filter(task -> Objects.equals(task.getClassName(), className)).findAny().ifPresent(task -> {
+                                    switch (task.getType()) {
+                                        case READ: {
+                                            task.setClassFileBuffer(buffer.get());
+                                            task.readClass();
+                                            break;
+                                        }
+                                        case WRITE: {
+                                            buffer.set(task.getClassFileBuffer());
+                                            break;
+                                        }
+                                    }
+                                    transformerTasks.remove(task);
+                                });
+                                return buffer.get();
+                            }, true);
+                            logger.println("[JEditor] [Agent Thread/INFO] Add the transformer on instrumentation");
+
                             if (socket.isInputShutdown() || socket.isOutputShutdown()) {
                                 logger.println("[JEditor] [Agent Thread/ERROR] Editor may close I/O streams");
                                 socket.close();
@@ -64,20 +130,19 @@ public class AgentMain {
                             int streamReadOffset = 0;
                             List<Byte> cacheBytes = new ArrayList<>(); // 数据缓冲区
                             while (!socket.isClosed() && !isStop) {
-                                if (socket.getInputStream().available() >= 0 && socket.getInputStream().available() - streamReadOffset >= 0) {
+                                if (socket.getInputStream().available() - streamReadOffset >= 0) {
                                     byte[] inputBytes = new byte[socket.getInputStream().available() - streamReadOffset];
-                                    if (socket.getInputStream().read(inputBytes) != inputBytes.length) {
+                                    if (socket.getInputStream().read(inputBytes, 0, inputBytes.length) != inputBytes.length) {
                                         logger.println("[JEditor] [NETWORK/WARN] Read data length is different from buffer length, may cause some problems");
                                     }
                                     streamReadOffset += inputBytes.length;
                                     cacheBytes.addAll(Arrays.asList(StreamUtil.bytesToByteArray(inputBytes))); // 写入缓冲区
                                     String inputContents = new String(StreamUtil.byteArrayToBytes(cacheBytes.toArray(new Byte[0])), StandardCharsets.UTF_8);
                                     if (!inputContents.isEmpty() && inputContents.contains(new String(endStreamFlags))) {
-                                        boolean needReleaseBuffer = false;
-                                        for (String inputContent : inputContents.split(new String(endStreamFlags))) {
+                                        for (String inputContent : StringUtil.split(inputContents, new String(endStreamFlags))) {
                                             if (!inputContent.isEmpty()) {
                                                 logger.println("[JEditor] [NETWORK/DEBUG] Input data: " + inputContent);
-                                                String[] inputArgs = inputContent.contains(" ") ? inputContent.split(" ") : new String[]{inputContent};
+                                                String[] inputArgs = inputContent.contains(" ") ? StringUtil.split(inputContent, " ") : new String[]{inputContent};
                                                 if (inputArgs.length > 0 && !inputArgs[0].isEmpty()) {
                                                     switch (inputArgs[0]) {
                                                         case "close": {
@@ -86,48 +151,48 @@ public class AgentMain {
                                                         }
                                                         case "tree": {
                                                             logger.print("[JEditor] [NETWORK/DEBUG] Sending classes...\r");
-                                                            StringBuilder data = new StringBuilder("tree");
                                                             for (Class<?> loadedClass : inst.getInitiatedClasses(ClassLoader.getSystemClassLoader())) {
-                                                                data.append(" ").append(loadedClass.getName());
+                                                                socket.getOutputStream().write(ArrayUtil.connect(("tree " + loadedClass.getName()).getBytes(StandardCharsets.UTF_8), endStreamFlags));
                                                                 logger.print("[JEditor] [NETWORK/DEBUG] Sending class " + loadedClass + "\r");
                                                             }
                                                             logger.println("[JEditor] [NETWORK/DEBUG] Sent " + inst.getAllLoadedClasses().length + " classes");
-                                                            socket.getOutputStream().write(ArrayUtil.connect(data.toString().getBytes(StandardCharsets.UTF_8), endStreamFlags));
                                                             break;
                                                         }
                                                         case "class": {
                                                             if (inputArgs.length == 2) {
-                                                                inst.addTransformer((loader, className, classBeingRedefined, protectionDomain, classfileBuffer) -> {
-                                                                    if (Objects.equals(className, inputArgs[1])) {
+                                                                TransformerTask task = new TransformerTask(TransformerTask.TaskType.READ, inputArgs[1]) {
+                                                                    @Override
+                                                                    public void readClass() {
                                                                         try {
-                                                                            socket.getOutputStream().write(ArrayUtil.connect(("class " + className + " " + new String(classfileBuffer, StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8), endStreamFlags));
+                                                                            socket.getOutputStream().write(ArrayUtil.connect(("class " + getClassName() + " " + new String(getClassFileBuffer(), StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8), endStreamFlags));
                                                                         } catch (IOException e) {
                                                                             new RuntimeException(e).printStackTrace(logger);
                                                                         }
                                                                     }
-                                                                    return classfileBuffer;
-                                                                }, false);
+                                                                };
+                                                                transformerTasks.add(task);
+                                                                try {
+                                                                    inst.retransformClasses(Class.forName(inputArgs[1]));
+                                                                } catch (ClassNotFoundException ignored) {
+                                                                    logger.println("[JEditor] [Agent Thread/ERROR] Unknown class " + inputArgs[1]);
+                                                                } catch (UnmodifiableClassException e) {
+                                                                    new RuntimeException(e).printStackTrace(logger);
+                                                                }
                                                             }
                                                             break;
                                                         }
                                                         case "retransform": {
-                                                            try {
-                                                                if (inputArgs.length >= 3) {
-                                                                    String targetClassName = inputArgs[1];
-                                                                    byte[] newByteCode = String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8);
-                                                                    ClassFileTransformer transformer = (loader, className, classBeingRedefined, protectionDomain, classfileBuffer) -> {
-                                                                        if (Objects.equals(className, targetClassName)) {
-                                                                            classfileBuffer = newByteCode;
-                                                                        }
-                                                                        return classfileBuffer;
-                                                                    };
-                                                                    inst.addTransformer(transformer, true);
-                                                                    inst.retransformClasses(Class.forName(targetClassName));
-                                                                    inst.removeTransformer(transformer);
+                                                            if (inputArgs.length >= 3) {
+                                                                TransformerTask task = new TransformerTask(TransformerTask.TaskType.READ, inputArgs[1]);
+                                                                task.setClassFileBuffer(String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8));
+                                                                transformerTasks.add(task);
+                                                                try {
+                                                                    inst.retransformClasses(Class.forName(inputArgs[1]));
+                                                                } catch (UnmodifiableClassException ignored) {
+                                                                    logger.println("[JEditor] [Agent Thread/ERROR] The class " + inputArgs[1] + " is unmodifiable");
+                                                                } catch (ClassNotFoundException ignored) {
+                                                                    logger.println("[JEditor] [Agent Thread/ERROR] Unknown class " + inputArgs[1]);
                                                                 }
-                                                            } catch (UnmodifiableClassException |
-                                                                     ClassNotFoundException e) {
-                                                                new RuntimeException(e).printStackTrace(logger);
                                                             }
                                                             break;
                                                         }
@@ -147,11 +212,8 @@ public class AgentMain {
                                                     }
                                                 }
                                             }
-                                            needReleaseBuffer = true;
                                         }
-                                        if (needReleaseBuffer) {
-                                            cacheBytes.clear();
-                                        }
+                                        cacheBytes.clear();
                                     }
                                 }
                                 socket.getOutputStream().flush();
@@ -178,7 +240,7 @@ public class AgentMain {
         String keyObj = (key.length() == 1 ? "-" : "--") + key;
         for (String argument : args) {
             if (argument.startsWith(keyObj) && argument.contains("=")) {
-                String[] keyAndValue = argument.split("=", 2);
+                String[] keyAndValue = StringUtil.split(argument, "=", 2);
                 return keyAndValue[1];
             }
         }
