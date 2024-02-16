@@ -55,9 +55,7 @@ public class AgentMain {
             this.classFileBuffer = buffer;
         }
 
-        public void readClass() {
-            // TODO 读取类后事件
-        }
+        public void readClass() {}
     }
 
     /**
