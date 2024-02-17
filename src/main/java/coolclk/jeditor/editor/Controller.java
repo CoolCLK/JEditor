@@ -8,6 +8,7 @@ import coolclk.jeditor.Application;
 import coolclk.jeditor.api.Configuration;
 import coolclk.jeditor.api.javafx.CodeArea;
 import coolclk.jeditor.api.javafx.SimpleController;
+import coolclk.jeditor.api.javafx.SingleContentTab;
 import coolclk.jeditor.api.lang.AutoStoppableThread;
 import coolclk.jeditor.api.lang.Stoppable;
 import coolclk.jeditor.util.*;
@@ -97,7 +98,7 @@ public class Controller extends SimpleController {
                         VBox.setVgrow(classesTreeView, Priority.ALWAYS);
 
                         TabPane editTabPane = new TabPane();
-                        Map<Tab, CodeArea> editTabs = new HashMap<>();
+                        Map<String, SingleContentTab<CodeArea>> editTabs = new HashMap<>();
                         VBox.setVgrow(editTabPane, Priority.ALWAYS);
 
                         SplitPane tabSpiltPane = new SplitPane();
@@ -121,18 +122,18 @@ public class Controller extends SimpleController {
 
                         tab.setOnCloseRequest(_event -> {
                             AtomicBoolean needSave = new AtomicBoolean(false);
-                            editTabs.values().forEach(codeArea -> {
-                                if (codeArea.isTextChanged()) {
+                            editTabs.values().forEach(codeAreaTab -> {
+                                if (codeAreaTab.getSingleContent().isTextChanged()) {
                                     needSave.set(true);
                                 }
                             });
                             if (needSave.get()) {
-                                editTabs.values().forEach(codeArea -> {
-                                    if (codeArea.isTextChanged()) {
+                                editTabs.values().forEach(codeAreaTab -> {
+                                    if (codeAreaTab.getSingleContent().isTextChanged()) {
                                         new Alert(Alert.AlertType.INFORMATION, Application.languageResourceBundle.getString("window.editor.askSave.content"), ButtonType.YES, ButtonType.NO).showAndWait().ifPresent(buttonType -> {
                                             if (buttonType == ButtonType.YES) {
-                                                if (codeArea.isTextChanged()) {
-                                                    codeArea.save(true);
+                                                if (codeAreaTab.getSingleContent().isTextChanged()) {
+                                                    codeAreaTab.getSingleContent().save(true);
                                                 }
                                             }
                                         });
@@ -213,52 +214,55 @@ public class Controller extends SimpleController {
                                                                                                 if (Objects.equals(className.substring(className.lastIndexOf(".") + 1), classParent)) {
                                                                                                     classesTreeView.addEventFilter(MouseEvent.MOUSE_CLICKED, _event -> {
                                                                                                         if (_event.getClickCount() == 2 && Objects.equals(classesTreeView.getSelectionModel().getSelectedItem(), newParent)) {
-                                                                                                            Tab editTab = new Tab(className);
-                                                                                                            CodeArea editCodeArea = new CodeArea() {
-                                                                                                                @Override
-                                                                                                                public void save(boolean save) {
-                                                                                                                    if (save) {
-                                                                                                                        String data = "";
-                                                                                                                        try {
-                                                                                                                            data += (VersionUtil.javaVersionCompare(((StringMonitor) processListCell.getSelectionModel().getSelectedItem().findByName("java.property.java.version")).stringValue(), "1.5") > 0) ? "retransform" : "redefine";
-                                                                                                                        } catch (
-                                                                                                                                MonitorException e) {
-                                                                                                                            throw new RuntimeException(e);
+                                                                                                            if (editTabs.keySet().stream().noneMatch(clazzName -> Objects.equals(clazzName, className))) {
+                                                                                                                SingleContentTab<CodeArea> editTab = new SingleContentTab<>(className);
+                                                                                                                CodeArea editCodeArea = new CodeArea() {
+                                                                                                                    @Override
+                                                                                                                    public void save(boolean save) {
+                                                                                                                        if (save) {
+                                                                                                                            String data = "";
+                                                                                                                            try {
+                                                                                                                                data += (VersionUtil.javaVersionCompare(((StringMonitor) processListCell.getSelectionModel().getSelectedItem().findByName("java.property.java.version")).stringValue(), "1.5") > 0) ? "retransform" : "redefine";
+                                                                                                                            } catch (
+                                                                                                                                    MonitorException e) {
+                                                                                                                                throw new RuntimeException(e);
+                                                                                                                            }
+                                                                                                                            data += " " + className + " " + this.getText();
+                                                                                                                            try {
+                                                                                                                                socket.getOutputStream().write(ArrayUtil.connect(data.getBytes(StandardCharsets.UTF_8), endStreamFlags));
+                                                                                                                                super.save(true);
+                                                                                                                            } catch (
+                                                                                                                                    IOException e) {
+                                                                                                                                throw new RuntimeException(e);
+                                                                                                                            }
+                                                                                                                        } else {
+                                                                                                                            editTab.setText("*" + className);
                                                                                                                         }
-                                                                                                                        data += " " + classParent + " " + this.getText();
-                                                                                                                        try {
-                                                                                                                            socket.getOutputStream().write(ArrayUtil.connect(data.getBytes(StandardCharsets.UTF_8), endStreamFlags));
-                                                                                                                            super.save(true);
-                                                                                                                        } catch (
-                                                                                                                                IOException e) {
-                                                                                                                            throw new RuntimeException(e);
-                                                                                                                        }
-                                                                                                                    } else {
-                                                                                                                        editTab.setText("*" + classParent);
                                                                                                                     }
-                                                                                                                }
-                                                                                                            };
-                                                                                                            editCodeArea.setEditable(false);
+                                                                                                                };
+                                                                                                                editCodeArea.setEditable(false);
+                                                                                                                editTab.setContent(editCodeArea);
+                                                                                                                editTab.setContent(editCodeArea);
+                                                                                                                editTabs.put(className, editTab);
+                                                                                                                editTabPane.getTabs().add(editTab);
+                                                                                                                editTab.setOnCloseRequest(event -> {
+                                                                                                                    if (editCodeArea.isTextChanged()) {
+                                                                                                                        new Alert(Alert.AlertType.INFORMATION, Application.languageResourceBundle.getString("window.editor.askSave.content"), ButtonType.YES, ButtonType.NO).showAndWait().ifPresent(buttonType -> {
+                                                                                                                            if (buttonType == ButtonType.YES) {
+                                                                                                                                if (editCodeArea.isTextChanged()) {
+                                                                                                                                    editCodeArea.save(true);
+                                                                                                                                }
+                                                                                                                            }
+                                                                                                                        });
+                                                                                                                    }
+                                                                                                                });
+                                                                                                            }
                                                                                                             try {
                                                                                                                 socket.getOutputStream().write(ArrayUtil.connect(("class " + className).getBytes(StandardCharsets.UTF_8), endStreamFlags));
                                                                                                             } catch (
                                                                                                                     IOException e) {
                                                                                                                 throw new RuntimeException(e);
                                                                                                             }
-                                                                                                            editTab.setContent(editCodeArea);
-                                                                                                            editTabs.put(editTab, editCodeArea);
-                                                                                                            editTabPane.getTabs().add(editTab);
-                                                                                                            editTab.setOnCloseRequest(event -> {
-                                                                                                                if (editCodeArea.isTextChanged()) {
-                                                                                                                    new Alert(Alert.AlertType.INFORMATION, Application.languageResourceBundle.getString("window.editor.askSave.content"), ButtonType.YES, ButtonType.NO).showAndWait().ifPresent(buttonType -> {
-                                                                                                                        if (buttonType == ButtonType.YES) {
-                                                                                                                            if (editCodeArea.isTextChanged()) {
-                                                                                                                                editCodeArea.save(true);
-                                                                                                                            }
-                                                                                                                        }
-                                                                                                                    });
-                                                                                                                }
-                                                                                                            });
                                                                                                         }
                                                                                                     });
                                                                                                 }
@@ -342,11 +346,28 @@ public class Controller extends SimpleController {
                                                                     }
                                                                     case "class": {
                                                                         if (inputArgs.length >= 3) {
-                                                                            for (Tab _tab : editTabs.keySet()) {
-                                                                                if (tab.getText().endsWith(inputArgs[1])) {
-                                                                                    editTabs.get(_tab).clear();
-                                                                                    editTabs.get(_tab).appendText(BytecodeUtil.toCode(String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8)));
-                                                                                    editTabs.get(_tab).setEditable(true);
+                                                                            switch (inputArgs[2]) {
+                                                                                case "buffer": {
+                                                                                    for (String className : editTabs.keySet()) {
+                                                                                        if (tab.getText().endsWith(inputArgs[1])) {
+                                                                                            editTabs.get(className).getSingleContent().clear();
+                                                                                            editTabs.get(className).getSingleContent().appendText(BytecodeUtil.toCode(String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8)));
+                                                                                            break;
+                                                                                        }
+                                                                                    }
+                                                                                    break;
+                                                                                }
+                                                                                case "modifiable": {
+                                                                                    for (String className : editTabs.keySet()) {
+                                                                                        if (tab.getText().endsWith(inputArgs[1])) {
+                                                                                            editTabs.get(className).getSingleContent().setEditable(Objects.equals(inputArgs[2], "true"));
+                                                                                            break;
+                                                                                        }
+                                                                                    }
+                                                                                    break;
+                                                                                }
+                                                                                default: {
+                                                                                    _LOGGER.warn(Application.languageResourceBundle.getString("logging.agentWorker"));
                                                                                     break;
                                                                                 }
                                                                             }

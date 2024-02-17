@@ -162,20 +162,28 @@ public class AgentMain {
                                                                     @Override
                                                                     public void readClass() {
                                                                         try {
-                                                                            socket.getOutputStream().write(ArrayUtil.connect(("class " + getClassName() + " " + new String(getClassFileBuffer(), StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8), endStreamFlags));
+                                                                            socket.getOutputStream().write(ArrayUtil.connect(("class " + getClassName() + " buffer " + new String(getClassFileBuffer(), StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8), endStreamFlags));
                                                                         } catch (IOException e) {
                                                                             new RuntimeException(e).printStackTrace(logger);
                                                                         }
+                                                                        logger.println("[JEditor] [Agent Thread/INFO] Sent class " + getClassName() + " file buffer");
                                                                     }
                                                                 };
                                                                 transformerTasks.add(task);
                                                                 try {
-                                                                    inst.retransformClasses(Class.forName(inputArgs[1]));
+                                                                    Class<?> target = Class.forName(inputArgs[1]);
+                                                                    if (inst.isModifiableClass(target)) {
+                                                                        inst.retransformClasses(target);
+                                                                    } else {
+                                                                        socket.getOutputStream().write(ArrayUtil.connect(("class " + inputArgs[1] + " modifiable false").getBytes(StandardCharsets.UTF_8), endStreamFlags));
+                                                                    }
                                                                 } catch (ClassNotFoundException ignored) {
                                                                     logger.println("[JEditor] [Agent Thread/ERROR] Unknown class " + inputArgs[1]);
                                                                 } catch (UnmodifiableClassException e) {
-                                                                    new RuntimeException(e).printStackTrace(logger);
+                                                                    new RuntimeException("Unexpected exception, please create a new issues to solve it", e).printStackTrace(logger);
                                                                 }
+                                                            } else {
+                                                                logger.println("[JEditor] [Agent Thread/WARN] Incomplete command: " + inputContent);
                                                             }
                                                             break;
                                                         }
@@ -195,16 +203,21 @@ public class AgentMain {
                                                             break;
                                                         }
                                                         case "redefine": {
-                                                            try {
-                                                                if (inputArgs.length >= 3) {
-                                                                    String targetClassName = inputArgs[1];
-                                                                    byte[] newByteCode = String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8);
-                                                                    inst.redefineClasses(new ClassDefinition(Class.forName(targetClassName), newByteCode));
+                                                            if (inputArgs.length >= 3) {
+                                                                String targetClassName = inputArgs[1];
+                                                                byte[] newByteCode = String.join(" ", Arrays.asList(inputArgs).subList(2, inputArgs.length)).getBytes(StandardCharsets.UTF_8);
+                                                                try {
+                                                                        inst.redefineClasses(new ClassDefinition(Class.forName(targetClassName), newByteCode));
+                                                                } catch (UnmodifiableClassException ignored) {
+                                                                    logger.println("[JEditor] [Agent Thread/ERROR] The class " + inputArgs[1] + " is unmodifiable");
+                                                                } catch (ClassNotFoundException ignored) {
+                                                                    logger.println("[JEditor] [Agent Thread/ERROR] Unknown class " + inputArgs[1]);
                                                                 }
-                                                            } catch (ClassNotFoundException |
-                                                                     UnmodifiableClassException e) {
-                                                                new RuntimeException(e).printStackTrace(logger);
                                                             }
+                                                            break;
+                                                        }
+                                                        default: {
+                                                            logger.println("[JEditor] [Agent Thread/WARN] Unknown command: " + inputArgs[0]);
                                                             break;
                                                         }
                                                     }
