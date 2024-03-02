@@ -137,7 +137,7 @@ public class AgentMain {
                                     cacheBytes.addAll(Arrays.asList(StreamUtil.bytesToByteArray(inputBytes))); // 写入缓冲区
                                     String inputContents = new String(StreamUtil.byteArrayToBytes(cacheBytes.toArray(new Byte[0])), StandardCharsets.UTF_8);
                                     if (!inputContents.isEmpty() && inputContents.contains(new String(endStreamFlags))) {
-                                        for (String inputContent : StringUtil.split(inputContents, new String(endStreamFlags))) {
+                                        for (String inputContent : StringUtil.splitNoLast(inputContents, new String(endStreamFlags))) {
                                             if (!inputContent.isEmpty()) {
                                                 logger.println("[JEditor] [NETWORK/DEBUG] Input data: " + inputContent);
                                                 String[] inputArgs = inputContent.contains(" ") ? StringUtil.split(inputContent, " ") : new String[]{inputContent};

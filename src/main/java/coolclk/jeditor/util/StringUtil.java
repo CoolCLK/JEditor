@@ -106,16 +106,13 @@ public class StringUtil {
         int splitIndex = 0, resultIndex = 0;
         for (int i = 0; i < targetCharacters.length && (!limited || resultIndex < result.length); i++) {
             if (Objects.equals(targetCharacters[i], regexCharacters[0])) {
-                boolean match = true;
                 for (int c = 0; c < regexCharacters.length; c++) {
                     if (!Objects.equals(targetCharacters[i + c], regexCharacters[c])) {
-                        match = false;
+                        result[resultIndex] = target.substring(splitIndex, i);
+                        splitIndex = i + regex.length();
+                        resultIndex++;
+                        break;
                     }
-                }
-                if (match) {
-                    result[resultIndex] = target.substring(splitIndex, i);
-                    splitIndex = i + regex.length();
-                    resultIndex++;
                 }
             }
         }
@@ -123,6 +120,21 @@ public class StringUtil {
             result[result.length - 1] = target.substring(splitIndex);
         }
         return result;
+    }
+
+    /**
+     * 忽略正则表达式分割文本并去掉最后一个项
+     * @param targetObject 被分割值
+     * @param regexObject 分割值, 不支持正则表达式, 若想要使用正则表达式请直接使用 {@link java.lang.String#split(String, int)}
+     * @return 分割后结果
+     * @author CoolCLK
+     */
+    public static String[] splitNoLast(Object targetObject, Object regexObject) {
+        int limit = appearTimes(targetObject, regexObject);
+        if (limit <= 0) {
+            return new String[0];
+        }
+        return split(targetObject, regexObject, limit);
     }
 
     /**
