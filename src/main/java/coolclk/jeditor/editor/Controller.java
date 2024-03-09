@@ -160,7 +160,7 @@ public class Controller extends SimpleController {
 
                                 @Override
                                 public void run() {
-                                    final byte[] endStreamFlags = ";".getBytes(); // 结尾字节
+                                    final byte[] endStreamFlags = { 0 }; // 结尾字节
 
                                     try (final ServerSocket serverSocket = new ServerSocket()) {
                                         serverSocket.bind(new InetSocketAddress(socketAddress, finalSocketPort));
@@ -377,8 +377,9 @@ public class Controller extends SimpleController {
                                                                 }
                                                             }
                                                         }
+                                                        cacheBytes.removeAll(Arrays.asList(StreamUtil.bytesToByteArray(inputContent.getBytes(StandardCharsets.UTF_8))));
+                                                        cacheBytes.removeAll(Arrays.asList(StreamUtil.bytesToByteArray(endStreamFlags)));
                                                     }
-                                                    cacheBytes.clear();
                                                 }
                                             }
                                             socket.getOutputStream().flush();

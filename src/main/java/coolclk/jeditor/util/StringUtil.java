@@ -99,20 +99,22 @@ public class StringUtil {
      */
     public static String[] split(Object targetObject, Object regexObject, int limit) {
         boolean limited = limit > 0;
-        String target = targetObject.toString(), regex =  regexObject.toString();
-        char[] targetCharacters = target.toCharArray(), regexCharacters =  regex.toCharArray();
-
+        String target = targetObject.toString(), regex = regexObject.toString();
+        char[] targetCharacters = target.toCharArray(), regexCharacters = regex.toCharArray();
         String[] result = new String[(limited ? limit : appearTimes(target, regex) + 1)];
         int splitIndex = 0, resultIndex = 0;
         for (int i = 0; i < targetCharacters.length && (!limited || resultIndex < result.length); i++) {
             if (Objects.equals(targetCharacters[i], regexCharacters[0])) {
-                for (int c = 0; c < regexCharacters.length; c++) {
-                    if (!Objects.equals(targetCharacters[i + c], regexCharacters[c])) {
-                        result[resultIndex] = target.substring(splitIndex, i);
-                        splitIndex = i + regex.length();
-                        resultIndex++;
+                int legitimateCharacterCounts;
+                for (legitimateCharacterCounts = 0; legitimateCharacterCounts < regexCharacters.length; legitimateCharacterCounts++) {
+                    if (!Objects.equals(targetCharacters[i + legitimateCharacterCounts], regexCharacters[legitimateCharacterCounts])) {
                         break;
                     }
+                }
+                if (legitimateCharacterCounts >= regexCharacters.length) {
+                    result[resultIndex] = target.substring(splitIndex, i);
+                    splitIndex = i + regex.length();
+                    resultIndex++;
                 }
             }
         }
